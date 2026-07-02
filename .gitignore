@@ -1,5 +1,17 @@
-vencv
-venv
+# Local reference copy
+NOT_PROD/
+
+# Local venvs
+vencv/
+
+# Never commit the API token, however it lands locally
+*.secret
+.dspace-personal-api-token.secret
+token.secret
+
+# Raw per-run debug dumps — uploaded as short-retention Actions artifacts
+# instead. Committing these to git forever would bloat history for no benefit.
+data/raw/*.jsonl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

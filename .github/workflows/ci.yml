@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check src/ tests/ scripts/
+
+      - name: Run tests
+        run: pytest tests/ -v
+
+      - name: Validate committed zora_publications.jsonl against schema
+        run: |
+          if [ -f data/zora_publications.jsonl ]; then
+            python -m src.output_schema data/zora_publications.jsonl
+          else
+            echo "No data/zora_publications.jsonl yet (expected before the first harvest run) — skipping"
+          fi
+
+      - name: Validate committed researchers.jsonl against schema
+        run: |
+          if [ -f data/researchers.jsonl ]; then
+            python -m src.schema data/researchers.jsonl
+          else
+            echo "No data/researchers.jsonl yet (expected before the first harvest run) — skipping"
+          fi

@@ -1,0 +1,67 @@
+name: Incremental harvest
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # daily, 03:00 UTC
+  workflow_dispatch:        # lets you trigger it by hand too, e.g. right after fixing a bug
+
+concurrency:
+  group: zora-harvest
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # to commit updated data/ back to the repo
+  packages: read     # to pull the image from GHCR
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute lowercase image ref
+        run: echo "IMAGE=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
+
+      - name: Write API token to a temp file
+        run: echo "${{ secrets.ZORA_API_KEY }}" > "${{ runner.temp }}/zora-token.secret"
+
+      - name: Run harvester container
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "${{ github.workspace }}/data:/app/data" \
+            -v "${{ runner.temp }}/zora-token.secret:/app/zora-token.secret:ro" \
+            -e PERSONAL_API_TOKEN_FILE=/app/zora-token.secret \
+            -e DSPACE_API_ENDPOINT=https://www.zora.uzh.ch/server/api \
+            "$IMAGE:latest" \
+            --mode incremental
+
+      - name: Remove token file
+        if: always()
+        run: rm -f "${{ runner.temp }}/zora-token.secret"
+
+      # Debug visibility without bloating git history — raw dumps are
+      # excluded from the commit below (see .gitignore) but kept here for
+      # a couple of weeks in case a harvest run needs investigating.
+      - name: Upload raw dump as build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-dump-${{ github.run_id }}
+          path: data/raw/*.jsonl
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Commit updated data
+        run: |
+          git config user.name "zora-harvest-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/zora_publications.jsonl data/researchers.jsonl data/state.json
+          git diff --staged --quiet || git commit -m "chore: incremental ZORA harvest $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push

@@ -1,0 +1,2 @@
+dspace-rest-client>=0.1.20
+pydantic>=2.0,<3.0

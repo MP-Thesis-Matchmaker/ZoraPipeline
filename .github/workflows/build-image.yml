@@ -1,0 +1,54 @@
+name: Build and publish image
+
+# Publishing to GHCR (rather than only building inline in the harvest job)
+# means this container is pullable by anything with read access to the
+# package: another repo's workflow, a teammate's laptop, a server outside
+# GitHub Actions entirely. `docker pull ghcr.io/<owner>/<repo>:latest` is
+# all that's needed — no need to clone this source to use it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - "requirements.txt"
+      - "src/**"
+      - "schema/**"
+      - "scripts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Handles lowercasing the owner/repo name automatically — GHCR
+      # requires lowercase image refs, GitHub repo names don't guarantee it.
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

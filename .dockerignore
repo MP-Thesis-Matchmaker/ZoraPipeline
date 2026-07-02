@@ -1,0 +1,14 @@
+.git
+.github
+data/
+tests/
+NOT_PROD/
+*.secret
+.dspace-personal-api-token.secret
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+vencv/
+*.md
