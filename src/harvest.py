@@ -29,7 +29,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from . import aggregate, config, normalize, output_schema, schema, state, zora_client
+from . import aggregate, config, normalize, output_schema, state, zora_client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
