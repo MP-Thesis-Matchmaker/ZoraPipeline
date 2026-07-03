@@ -115,7 +115,7 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
     client = zora_client.get_client()
     raw_items = []
     last_accessioned_seen = since
-    harvested_at = datetime.now(timezone.utc).isoformat()
+
 
     for i, dso in enumerate(zora_client.iter_faculty_items(client, since=since)):
         if limit is not None and i >= limit:
@@ -137,7 +137,7 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
 
     # --- Primary output: flat publications (zora_publications.jsonl) ---
     new_publications = [
-        output_schema.to_output(record, harvested_at) for record in raw_items
+        output_schema.to_output(record) for record in raw_items
     ]
 
     if mode == "incremental":

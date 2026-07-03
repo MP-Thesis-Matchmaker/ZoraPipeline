@@ -3,7 +3,7 @@
   "title": "ZoraPublication",
   "description": "One line of data/zora_publications.jsonl. Mirrors src/output_schema.py — keep both in sync.",
   "type": "object",
-  "required": ["handle", "harvested_at"],
+  "required": ["handle"],
   "properties": {
     "handle": {
       "type": "string",
@@ -33,25 +33,13 @@
       "items": { "type": "string" },
       "description": "Subject keywords from dc.subject, for topic matching"
     },
-    "author_orcid": {
-      "type": ["string", "null"],
-      "description": "ORCID found on this publication, only confidently attributed for single-author items"
-    },
     "zora_url": {
       "type": ["string", "null"]
-    },
-    "faculty": {
-      "type": "string",
-      "const": "Faculty of Economics"
     },
     "source_scope": {
       "type": "string",
       "const": "9e8a319a-6d8f-4882-bf2a-684e358e6fff",
       "description": "Faculty of Economics community UUID in ZORA"
-    },
-    "harvested_at": {
-      "type": "string",
-      "description": "ISO timestamp of when this record was pulled"
     }
   }
 }

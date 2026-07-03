@@ -37,27 +37,14 @@ class ZoraPublication(BaseModel):
         description="Subject keywords from dc.subject, for topic matching",
     )
 
-    # --- Author identity (for supervisor linking) ---
-    author_orcid: str | None = Field(
-        default=None,
-        description=(
-            "ORCID found on this publication. Only confidently attributed "
-            "when the item has a single author. See aggregate.py docstring."
-        ),
-    )
-
     # --- Links (for display / citation) ---
     zora_url: str | None = None
 
     # --- Scope ---
-    faculty: str = config.FACULTY
     source_scope: str = config.FACULTY_SCOPE_UUID
 
-    # --- Harvester metadata ---
-    harvested_at: str = Field(description="ISO timestamp of when this record was pulled")
 
-
-def to_output(record: dict, harvested_at: str) -> dict:
+def to_output(record: dict) -> dict:
     """Map internal normalized record → output shape.
 
     Edit this function to change what fields appear in the output.
@@ -70,10 +57,8 @@ def to_output(record: dict, harvested_at: str) -> dict:
         year=record.get("year"),
         publication_type=record.get("type"),
         keywords=record.get("keywords", []),
-        author_orcid=record.get("author_orcid"),
         doi=record.get("doi"),
         zora_url=record.get("uri"),
-        harvested_at=harvested_at,
     ).model_dump()
 
 
