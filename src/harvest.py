@@ -142,8 +142,12 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
 
     if mode == "incremental":
         existing_pubs = load_existing_publications(config.PUBLICATIONS_PATH)
+        new_count = 0
         for pub in new_publications:
-            existing_pubs[pub["handle"]] = pub  # upsert by handle
+            if pub["handle"] not in existing_pubs:
+                existing_pubs[pub["handle"]] = pub
+                new_count += 1
+        logger.info("%d genuinely new publications (of %d returned by API)", new_count, len(new_publications))
         final_publications = list(existing_pubs.values())
     else:
         final_publications = new_publications
