@@ -15,15 +15,40 @@ import os
 
 from dspace_rest_client.client import DSpaceClient
 
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
 from . import config
 
 logger = logging.getLogger(__name__)
+
+
+class TimeoutHTTPAdapter(HTTPAdapter):
+    """An HTTPAdapter that injects a default timeout to all requests if not specified."""
+    def __init__(self, *args, timeout=None, **kwargs):
+        self.timeout = timeout
+        super().__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        kwargs.setdefault("timeout", self.timeout)
+        return super().send(request, **kwargs)
 
 
 def get_client() -> DSpaceClient:
     """Construct and authenticate a DSpaceClient against the ZORA API."""
     endpoint = os.environ.get("DSPACE_API_ENDPOINT", config.DEFAULT_API_ENDPOINT)
     client = DSpaceClient(api_endpoint=endpoint)
+
+    # Configure request timeout (10s connect, 60s read) and automatic retries
+    retries = Retry(
+        total=3,
+        backoff_factor=2,  # sleeps 2s, 4s, 8s between retries
+        status_forcelist=[500, 502, 503, 504],
+        raise_on_status=False,
+    )
+    adapter = TimeoutHTTPAdapter(timeout=(10.0, 60.0), max_retries=retries)
+    client.session.mount("http://", adapter)
+    client.session.mount("https://", adapter)
 
     if client.api_token is None:
         raise RuntimeError(

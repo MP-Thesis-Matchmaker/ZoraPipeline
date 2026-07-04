@@ -16,6 +16,7 @@ permissions:
 jobs:
   harvest:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -31,16 +32,25 @@ jobs:
       - name: Write API token to a temp file
         run: echo "${{ secrets.ZORA_API_KEY }}" > "${{ runner.temp }}/zora-token.secret"
 
-      - name: Run harvester container
+      - name: Run harvester container (with retry)
         run: |
-          docker run --rm \
-            --user "$(id -u):$(id -g)" \
-            -v "${{ github.workspace }}/data:/app/data" \
-            -v "${{ runner.temp }}/zora-token.secret:/app/zora-token.secret:ro" \
-            -e PERSONAL_API_TOKEN_FILE=/app/zora-token.secret \
-            -e DSPACE_API_ENDPOINT=https://www.zora.uzh.ch/server/api \
-            "$IMAGE:latest" \
-            --mode incremental
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "Harvester attempt $attempt/3..."
+            if docker run --rm \
+              --user "$(id -u):$(id -g)" \
+              -v "${{ github.workspace }}/data:/app/data" \
+              -v "${{ runner.temp }}/zora-token.secret:/app/zora-token.secret:ro" \
+              -e PERSONAL_API_TOKEN_FILE=/app/zora-token.secret \
+              -e DSPACE_API_ENDPOINT=https://www.zora.uzh.ch/server/api \
+              "$IMAGE:latest" \
+              --mode incremental; then
+              exit 0
+            fi
+            sleep $((attempt * 30))
+          done
+          echo "Harvester failed after 3 attempts."
+          exit 1
 
       - name: Remove token file
         if: always()
