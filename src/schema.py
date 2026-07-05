@@ -3,7 +3,7 @@ The researcher profile contract (secondary/debug output). This is the shape
 of each line in data/researchers.jsonl — a per-researcher aggregation of
 publications, useful for eyeballing whether researcher profiles look correct.
 
-The PRIMARY deliverable is zora_publications.jsonl (see output_schema.py).
+The PRIMARY deliverable is publications.jsonl (see output_schema.py).
 """
 from __future__ import annotations
 

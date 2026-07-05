@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ZoraPublication",
-  "description": "One line of data/zora_publications.jsonl. Mirrors src/output_schema.py — keep both in sync.",
+  "description": "One line of data/publications.jsonl. Mirrors src/output_schema.py — keep both in sync. Field names match ZoraRecord in the main repo.",
   "type": "object",
-  "required": ["handle"],
+  "required": ["id"],
   "properties": {
-    "handle": {
+    "id": {
       "type": "string",
-      "description": "Stable ZORA identifier, used for deduplication across harvest runs"
+      "description": "ZORA handle, stable across harvests"
     },
     "doi": {
       "type": ["string", "null"]
@@ -33,13 +33,9 @@
       "items": { "type": "string" },
       "description": "Subject keywords from dc.subject, for topic matching"
     },
-    "zora_url": {
-      "type": ["string", "null"]
-    },
-    "source_scope": {
-      "type": "string",
-      "const": "9e8a319a-6d8f-4882-bf2a-684e358e6fff",
-      "description": "Faculty of Economics community UUID in ZORA"
+    "url": {
+      "type": ["string", "null"],
+      "description": "Link to the ZORA landing page"
     }
   }
 }

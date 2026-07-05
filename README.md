@@ -2,7 +2,7 @@
 
 Harvests publication metadata from ZORA, scoped to the UZH Faculty of
 Economics (community UUID `9e8a319a-6d8f-4882-bf2a-684e358e6fff`), and
-outputs flat per-publication records at `data/zora_publications.jsonl` —
+outputs flat per-publication records at `data/publications.jsonl` —
 the primary input for the RAG retrieval and ranking layers.
 
 Also produces `data/researchers.jsonl` (per-researcher profiles) as a
@@ -49,12 +49,13 @@ After that, `harvest-incremental.yml` (daily) and `harvest-full.yml`
 
 ## Output format
 
-Primary output: `data/zora_publications.jsonl` — one JSON object per line,
-each representing a single ZORA publication:
+Primary output: `data/publications.jsonl` — one JSON object per line,
+each representing a single ZORA publication. Field names match the
+main repo's `ZoraRecord` contract:
 
 ```json
 {
-  "handle": "20.500.14742/1001",
+  "id": "20.500.14742/1001",
   "doi": "10.1234/example",
   "title": "Trade Policy and Growth",
   "abstract": "This paper examines...",
@@ -62,8 +63,7 @@ each representing a single ZORA publication:
   "year": 2025,
   "publication_type": "Journal Article",
   "keywords": ["International Trade", "Growth Models"],
-  "zora_url": "https://www.zora.uzh.ch/id/eprint/1001",
-  "source_scope": "9e8a319a-6d8f-4882-bf2a-684e358e6fff"
+  "url": "https://www.zora.uzh.ch/handle/20.500.14742/1001"
 }
 ```
 
@@ -174,7 +174,7 @@ schema/
   researcher.schema.json        # JSON Schema for secondary output
 tests/                # no network needed — fixtures fake the DSpace object shape
 data/
-  zora_publications.jsonl  # PRIMARY deliverable — created by the first harvest
+  publications.jsonl       # PRIMARY deliverable — created by the first harvest
   researchers.jsonl        # secondary/debug — per-researcher profiles
   state.json               # incremental watermark
   raw/                     # per-run debug dumps, gitignored, kept as Actions artifacts

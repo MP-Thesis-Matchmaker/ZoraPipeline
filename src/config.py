@@ -59,7 +59,7 @@ FIELD_ORCID_CANDIDATES = [
 # --- Paths -------------------------------------------------------------
 DATA_DIR = os.environ.get("ZORA_DATA_DIR", "data")
 RESEARCHERS_PATH = os.path.join(DATA_DIR, "researchers.jsonl")
-PUBLICATIONS_PATH = os.path.join(DATA_DIR, "zora_publications.jsonl")
+PUBLICATIONS_PATH = os.path.join(DATA_DIR, "publications.jsonl")
 STATE_PATH = os.path.join(DATA_DIR, "state.json")
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 

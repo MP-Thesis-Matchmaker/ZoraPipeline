@@ -1,14 +1,14 @@
 """
 The flat publication output contract — the primary deliverable of this
-pipeline. Each line of data/zora_publications.jsonl matches this schema.
+pipeline. Each line of data/publications.jsonl matches this schema.
 
 This is the SINGLE FILE you edit when the output shape needs to change.
 The Pydantic model defines what goes out; the to_output() function maps
 the internal normalized dict to that shape.
 
-NOTE: This schema is owned by ZoraPipeline and is intentionally independent
-of the main repo's contracts. Any mapping between this and the main repo's
-ZoraRecord happens in an adapter on whichever side makes sense, not here.
+Field names are aligned with the main repo's ZoraRecord contract
+(thesis_matchmaker.contracts.sources) so the indexer can validate
+our JSONL directly without an adapter layer.
 """
 from __future__ import annotations
 
@@ -18,10 +18,13 @@ from . import config
 
 
 class ZoraPublication(BaseModel):
-    """One ZORA publication. This is the atomic unit the RAG system works with."""
+    """One ZORA publication. This is the atomic unit the RAG system works with.
+
+    Field names match ZoraRecord in the main repo's contracts/sources.py.
+    """
 
     # --- Identity (stable across harvests) ---
-    handle: str = Field(description="Stable ZORA identifier, used for deduplication")
+    id: str = Field(description="ZORA handle, stable across harvests")
     doi: str | None = None
 
     # --- Text content (what gets embedded for RAG) ---
@@ -38,10 +41,7 @@ class ZoraPublication(BaseModel):
     )
 
     # --- Links (for display / citation) ---
-    zora_url: str | None = None
-
-    # --- Scope ---
-    source_scope: str = config.FACULTY_SCOPE_UUID
+    url: str | None = Field(default=None, description="Link to the ZORA landing page")
 
 
 def to_output(record: dict) -> dict:
@@ -50,7 +50,7 @@ def to_output(record: dict) -> dict:
     Edit this function to change what fields appear in the output.
     """
     return ZoraPublication(
-        handle=record["handle"],
+        id=record["handle"],
         title=record.get("title"),
         abstract=record.get("abstract"),
         authors=record.get("authors", []),
@@ -58,13 +58,13 @@ def to_output(record: dict) -> dict:
         publication_type=record.get("type"),
         keywords=record.get("keywords", []),
         doi=record.get("doi"),
-        zora_url=record.get("uri"),
+        url=record.get("uri"),
     ).model_dump()
 
 
 def validate_publications_jsonl(path: str) -> tuple[int, list[str]]:
     """
-    Validate every line of zora_publications.jsonl against the schema.
+    Validate every line of publications.jsonl against the schema.
     @return: (number of valid records, list of error strings for invalid ones)
     """
     import json

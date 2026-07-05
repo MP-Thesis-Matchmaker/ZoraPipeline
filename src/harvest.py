@@ -8,7 +8,7 @@ Usage:
     python -m src.harvest --mode incremental
 
 Outputs:
-    data/zora_publications.jsonl  — primary: flat per-publication records
+    data/publications.jsonl       — primary: flat per-publication records
     data/researchers.jsonl        — secondary: per-researcher profiles (debug)
     data/state.json               — incremental harvest watermark
 
@@ -54,7 +54,7 @@ def load_existing_profiles(path: str) -> dict[str, dict]:
 
 
 def load_existing_publications(path: str) -> dict[str, dict]:
-    """Load existing publications keyed by handle for deduplication."""
+    """Load existing publications keyed by id for deduplication."""
     if not os.path.exists(path):
         return {}
     publications: dict[str, dict] = {}
@@ -64,7 +64,7 @@ def load_existing_publications(path: str) -> dict[str, dict]:
             if not line:
                 continue
             record = json.loads(line)
-            publications[record["handle"]] = record
+            publications[record["id"]] = record
     return publications
 
 
@@ -135,7 +135,7 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
 
     write_raw_dump(raw_items, mode)
 
-    # --- Primary output: flat publications (zora_publications.jsonl) ---
+    # --- Primary output: flat publications (publications.jsonl) ---
     new_publications = [
         output_schema.to_output(record) for record in raw_items
     ]
@@ -144,15 +144,15 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
         existing_pubs = load_existing_publications(config.PUBLICATIONS_PATH)
         new_count = 0
         for pub in new_publications:
-            if pub["handle"] not in existing_pubs:
-                existing_pubs[pub["handle"]] = pub
+            if pub["id"] not in existing_pubs:
+                existing_pubs[pub["id"]] = pub
                 new_count += 1
         logger.info("%d genuinely new publications (of %d returned by API)", new_count, len(new_publications))
         final_publications = list(existing_pubs.values())
     else:
         final_publications = new_publications
 
-    write_jsonl(final_publications, config.PUBLICATIONS_PATH, sort_key="handle")
+    write_jsonl(final_publications, config.PUBLICATIONS_PATH, sort_key="id")
 
     # --- Secondary output: researcher profiles (researchers.jsonl) ---
     new_profiles = aggregate.build_researcher_profiles(raw_items)

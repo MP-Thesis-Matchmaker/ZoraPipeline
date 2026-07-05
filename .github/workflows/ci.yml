@@ -24,12 +24,12 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
 
-      - name: Validate committed zora_publications.jsonl against schema
+      - name: Validate committed publications.jsonl against schema
         run: |
-          if [ -f data/zora_publications.jsonl ]; then
-            python -m src.output_schema data/zora_publications.jsonl
+          if [ -f data/publications.jsonl ]; then
+            python -m src.output_schema data/publications.jsonl
           else
-            echo "No data/zora_publications.jsonl yet (expected before the first harvest run) — skipping"
+            echo "No data/publications.jsonl yet (expected before the first harvest run) — skipping"
           fi
 
       - name: Validate committed researchers.jsonl against schema
