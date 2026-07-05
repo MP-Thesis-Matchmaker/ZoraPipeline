@@ -62,11 +62,8 @@ each representing a single ZORA publication:
   "year": 2025,
   "publication_type": "Journal Article",
   "keywords": ["International Trade", "Growth Models"],
-  "author_orcid": "0000-0002-1111-2222",
   "zora_url": "https://www.zora.uzh.ch/id/eprint/1001",
-  "faculty": "Faculty of Economics",
-  "source_scope": "9e8a319a-6d8f-4882-bf2a-684e358e6fff",
-  "harvested_at": "2026-07-01T12:00:00+00:00"
+  "source_scope": "9e8a319a-6d8f-4882-bf2a-684e358e6fff"
 }
 ```
 
