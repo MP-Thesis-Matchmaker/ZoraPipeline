@@ -10,9 +10,12 @@ list of strings"). Every extraction below unwraps ["value"] explicitly.
 Trusting the docstring here silently stores dicts where strings are
 expected — this was caught by reading models.py directly, not assumed.
 """
+import logging
 from typing import Any
 
 from . import config
+
+logger = logging.getLogger(__name__)
 
 
 def _values(dso: Any, field: str) -> list[str]:
@@ -40,6 +43,57 @@ def _first_orcid(dso: Any) -> str | None:
     return None
 
 
+def _get_department(dso: Any) -> str | None:
+    """Resolve the department name from the item's embedded owningCollection.
+
+    The search query passes embeds=["owningCollection"], so each DSO carries
+    its owning collection as dso.embedded["owningCollection"]. We look up the
+    collection's UUID in the config mapping to get the department name.
+    """
+    embedded = getattr(dso, "embedded", None) or {}
+    owning_collection = embedded.get("owningCollection")
+    if not owning_collection:
+        return None
+    collection_uuid = owning_collection.get("uuid")
+    if not collection_uuid:
+        return None
+    department = config.COLLECTION_TO_DEPARTMENT.get(collection_uuid)
+    if department is None:
+        logger.warning(
+            "Unknown collection UUID %s (name: %s) — not in COLLECTION_TO_DEPARTMENT mapping",
+            collection_uuid,
+            owning_collection.get("name"),
+        )
+    return department
+
+
+def _get_uzh_authors(dso: Any) -> list[str]:
+    """Return only those authors who have a CRIS authority key (= UZH researchers).
+
+    External co-authors have authority=None in the metadata entry and are excluded.
+    """
+    raw = dso.get_metadata_values(config.FIELD_AUTHOR)
+    return [
+        entry["value"]
+        for entry in raw
+        if entry.get("value") and entry.get("authority")
+    ]
+
+
+def _get_author_authority_map(dso: Any) -> dict[str, str | None]:
+    """Build a dict mapping each author name → their CRIS Person UUID (or None).
+
+    This provides full provenance: UZH-affiliated authors have a UUID,
+    external co-authors have None.
+    """
+    raw = dso.get_metadata_values(config.FIELD_AUTHOR)
+    return {
+        entry["value"]: entry.get("authority")
+        for entry in raw
+        if entry.get("value")
+    }
+
+
 def normalize_item(dso: Any) -> dict:
     """
     Turn one raw DSpace item into a flat publication record.
@@ -56,10 +110,14 @@ def normalize_item(dso: Any) -> dict:
         "uuid": dso.uuid,
         "title": titles[0] if titles else None,
         "authors": _values(dso, config.FIELD_AUTHOR),
+        "uzh_authors": _get_uzh_authors(dso),
+        "author_authority_map": _get_author_authority_map(dso),
         "author_orcid": _first_orcid(dso),
         "abstract": next(iter(_values(dso, config.FIELD_ABSTRACT)), None),
         "year": _extract_year(years[0]) if years else None,
         "type": next(iter(_values(dso, config.FIELD_TYPE)), None),
+        "department": _get_department(dso),
+        "language": next(iter(_values(dso, config.FIELD_LANGUAGE)), None),
         "doi": next(iter(_values(dso, config.FIELD_DOI)), None),
         "uri": next(iter(_values(dso, config.FIELD_URI)), None),
         "keywords": _collect_keywords(dso),

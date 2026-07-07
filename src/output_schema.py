@@ -18,10 +18,7 @@ from . import config
 
 
 class ZoraPublication(BaseModel):
-    """One ZORA publication. This is the atomic unit the RAG system works with.
-
-    Field names match ZoraRecord in the main repo's contracts/sources.py.
-    """
+    """One ZORA publication. This is the atomic unit the RAG system works with."""
 
     # --- Identity (stable across harvests) ---
     id: str = Field(description="ZORA handle, stable across harvests")
@@ -33,11 +30,27 @@ class ZoraPublication(BaseModel):
 
     # --- Metadata (for filtering + ranking) ---
     authors: list[str] = Field(default_factory=list)
+    uzh_authors: list[str] = Field(
+        default_factory=list,
+        description="Authors with a CRIS authority key (= registered UZH researchers)",
+    )
+    author_authority_map: dict[str, str | None] = Field(
+        default_factory=dict,
+        description="Mapping of author name → CRIS Person UUID (null for external co-authors)",
+    )
     year: int | None = None
     publication_type: str | None = None
+    department: str | None = Field(
+        default=None,
+        description="UZH department/center derived from the owning collection",
+    )
+    language: str | None = Field(
+        default=None,
+        description="Language code from dc.language.iso, e.g. 'eng', 'deu'",
+    )
     keywords: list[str] = Field(
         default_factory=list,
-        description="Subject keywords from dc.subject, for topic matching",
+        description="Subject keywords from DDC and Scopus subject areas",
     )
 
     # --- Links (for display / citation) ---
@@ -54,8 +67,12 @@ def to_output(record: dict) -> dict:
         title=record.get("title"),
         abstract=record.get("abstract"),
         authors=record.get("authors", []),
+        uzh_authors=record.get("uzh_authors", []),
+        author_authority_map=record.get("author_authority_map", {}),
         year=record.get("year"),
         publication_type=record.get("type"),
+        department=record.get("department"),
+        language=record.get("language"),
         keywords=record.get("keywords", []),
         doi=record.get("doi"),
         url=record.get("uri"),

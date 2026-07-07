@@ -87,4 +87,5 @@ def iter_faculty_items(client: DSpaceClient, since: str | None = None):
         dso_type="item",
         query=query,
         sort="dc.date.accessioned,asc",
+        embeds=["owningCollection"],
     )

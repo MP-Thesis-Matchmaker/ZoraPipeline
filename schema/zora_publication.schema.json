@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ZoraPublication",
-  "description": "One line of data/publications.jsonl. Mirrors src/output_schema.py — keep both in sync. Field names match ZoraRecord in the main repo.",
+  "description": "One line of data/publications.jsonl. Mirrors src/output_schema.py — keep both in sync.",
   "type": "object",
   "required": ["id"],
   "properties": {
@@ -22,16 +22,34 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "uzh_authors": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Authors with a CRIS authority key (= registered UZH researchers)"
+    },
+    "author_authority_map": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "null"] },
+      "description": "Mapping of author name to CRIS Person UUID (null for external co-authors)"
+    },
     "year": {
       "type": ["integer", "null"]
     },
     "publication_type": {
       "type": ["string", "null"]
     },
+    "department": {
+      "type": ["string", "null"],
+      "description": "UZH department/center derived from the owning collection"
+    },
+    "language": {
+      "type": ["string", "null"],
+      "description": "Language code from dc.language.iso, e.g. 'eng', 'deu'"
+    },
     "keywords": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Subject keywords from dc.subject, for topic matching"
+      "description": "Subject keywords from DDC and Scopus subject areas"
     },
     "url": {
       "type": ["string", "null"],

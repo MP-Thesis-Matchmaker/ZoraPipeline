@@ -8,8 +8,7 @@ Usage:
     python -m src.harvest --mode incremental
 
 Outputs:
-    data/publications.jsonl       — primary: flat per-publication records
-    data/researchers.jsonl        — secondary: per-researcher profiles (debug)
+    data/publications.jsonl       — flat per-publication records
     data/state.json               — incremental harvest watermark
 
 full:        fetches every item currently in scope (optionally filtered by
@@ -29,7 +28,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from . import aggregate, config, normalize, output_schema, state, zora_client
+from . import config, normalize, output_schema, state, zora_client
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -39,18 +38,6 @@ logger = logging.getLogger(__name__)
 # File I/O helpers
 # ---------------------------------------------------------------------------
 
-def load_existing_profiles(path: str) -> dict[str, dict]:
-    if not os.path.exists(path):
-        return {}
-    profiles: dict[str, dict] = {}
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            record = json.loads(line)
-            profiles[record["researcher_id"]] = record
-    return profiles
 
 
 def load_existing_publications(path: str) -> dict[str, dict]:
@@ -154,21 +141,6 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
 
     write_jsonl(final_publications, config.PUBLICATIONS_PATH, sort_key="id")
 
-    # --- Secondary output: researcher profiles (researchers.jsonl) ---
-    new_profiles = aggregate.build_researcher_profiles(raw_items)
-
-    if mode == "incremental":
-        existing_profiles = load_existing_profiles(config.RESEARCHERS_PATH)
-        final_profiles = aggregate.merge_profiles(existing_profiles, new_profiles)
-    else:
-        final_profiles = new_profiles
-
-    write_jsonl(
-        list(final_profiles.values()),
-        config.RESEARCHERS_PATH,
-        sort_key="researcher_id",
-    )
-
     # --- Safety check ---
     new_total_pubs = len(final_publications)
     previous_total_pubs = st.get("last_total_publications", 0)
@@ -192,11 +164,9 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
 
     state.save_state(last_accessioned_seen, new_total_pubs)
     logger.info(
-        "Done. %d publications in %s, %d researcher profiles in %s, all schema-valid.",
+        "Done. %d publications in %s, all schema-valid.",
         valid_count,
         config.PUBLICATIONS_PATH,
-        len(final_profiles),
-        config.RESEARCHERS_PATH,
     )
     return 0
 

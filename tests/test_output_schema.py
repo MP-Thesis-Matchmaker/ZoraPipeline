@@ -9,10 +9,14 @@ def _record(**overrides):
         "uuid": "uuid-1",
         "title": "Trade Policy and Growth",
         "authors": ["Doe, Jane"],
+        "uzh_authors": ["Doe, Jane"],
+        "author_authority_map": {"Doe, Jane": "some-uuid"},
         "author_orcid": "0000-0002-1111-2222",
         "abstract": "This paper examines...",
         "year": 2025,
         "type": "Journal Article",
+        "department": "Department of Economics",
+        "language": "eng",
         "doi": "10.1234/example",
         "uri": "https://www.zora.uzh.ch/id/eprint/1001",
         "keywords": ["International Trade", "Growth"],
@@ -30,8 +34,12 @@ def test_to_output_maps_all_fields():
     assert out["title"] == "Trade Policy and Growth"
     assert out["abstract"] == "This paper examines..."
     assert out["authors"] == ["Doe, Jane"]
+    assert out["uzh_authors"] == ["Doe, Jane"]
+    assert out["author_authority_map"] == {"Doe, Jane": "some-uuid"}
     assert out["year"] == 2025
     assert out["publication_type"] == "Journal Article"
+    assert out["department"] == "Department of Economics"
+    assert out["language"] == "eng"
     assert out["keywords"] == ["International Trade", "Growth"]
     assert out["doi"] == "10.1234/example"
     assert out["url"] == "https://www.zora.uzh.ch/id/eprint/1001"
@@ -49,9 +57,13 @@ def test_to_output_handles_missing_optional_fields():
         title=None,
         abstract=None,
         authors=[],
+        uzh_authors=[],
+        author_authority_map={},
         author_orcid=None,
         year=None,
         type=None,
+        department=None,
+        language=None,
         doi=None,
         uri=None,
         keywords=[],
@@ -62,6 +74,10 @@ def test_to_output_handles_missing_optional_fields():
     assert out["title"] is None
     assert out["abstract"] is None
     assert out["authors"] == []
+    assert out["uzh_authors"] == []
+    assert out["author_authority_map"] == {}
+    assert out["department"] is None
+    assert out["language"] is None
     assert out["keywords"] == []
 
 
@@ -84,3 +100,6 @@ def test_zora_publication_validates_valid_record():
 
     validated = ZoraPublication.model_validate(out)
     assert validated.id == "20.500.14742/1001"
+    assert validated.department == "Department of Economics"
+    assert validated.language == "eng"
+    assert validated.uzh_authors == ["Doe, Jane"]

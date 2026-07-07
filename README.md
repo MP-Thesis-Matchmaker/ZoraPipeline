@@ -1,17 +1,70 @@
 # ZoraPipeline
 
-Harvests publication metadata from ZORA, scoped to the UZH Faculty of
-Economics (community UUID `9e8a319a-6d8f-4882-bf2a-684e358e6fff`), and
-outputs flat per-publication records at `data/publications.jsonl` —
-the primary input for the RAG retrieval and ranking layers.
+## What This Is
 
-Also produces `data/researchers.jsonl` (per-researcher profiles) as a
-secondary debugging output.
+This pipeline is part of the **Thesis Matchmaker** project at the University of
+Zurich. The goal: help students find the right supervisor for their thesis by
+matching their research interests against real publication data.
 
-Runs on a schedule via GitHub Actions with no manual involvement once set
-up. Also fully usable as a standalone container outside this repo.
+When a student asks something like *"I want to do a master's thesis in NLP
+related to retrieval-augmented generation"*, the system searches a vector
+database of publications, groups results by researcher, and recommends
+supervisors whose work best matches the query.
 
-## First-time setup
+**This repository is the data layer.** It harvests publication metadata from
+[ZORA](https://www.zora.uzh.ch) (UZH's institutional repository), scoped to the
+Faculty of Economics, and outputs clean, structured records that feed into the
+downstream retrieval and ranking pipeline.
+
+## How Publications Are Used
+
+1. **Harvest** — This pipeline fetches metadata (title, abstract, authors,
+   department, keywords, etc.) for every publication in the Faculty of Economics.
+2. **Index** — A separate component embeds each publication's title and abstract
+   into a vector database (ChromaDB) for semantic search.
+3. **Retrieve** — When a student queries the system, the vector database returns
+   the most relevant publications, filtered by department or other metadata.
+4. **Rank** — Publications are grouped by researcher to produce supervisor
+   recommendations, with evidence links back to the original ZORA records.
+
+## Output Format
+
+The sole deliverable is `data/publications.jsonl` — one JSON object per line,
+each representing a single ZORA publication:
+
+```json
+{
+  "id": "20.500.14742/31317",
+  "title": "Small scale entry versus acquisitions...",
+  "abstract": "We consider a reduced form model...",
+  "authors": ["Aydemir, Zava", "Schmutzler, Armin"],
+  "uzh_authors": ["Schmutzler, Armin"],
+  "author_authority_map": {
+    "Aydemir, Zava": null,
+    "Schmutzler, Armin": "f45b3ec1-cf2a-43ae-85d4-528afff07a40"
+  },
+  "year": 2008,
+  "publication_type": "article",
+  "department": "Department of Economics",
+  "language": "eng",
+  "keywords": ["330 Economics", "Economics and Econometrics"],
+  "doi": "10.1016/j.jebo.2004.11.017",
+  "url": "https://www.zora.uzh.ch/handle/20.500.14742/31317"
+}
+```
+
+Key fields for the RAG system:
+- **`title` + `abstract`** — embedded for semantic search (the main matching signal)
+- **`department`** — enables filtering by department (e.g. "Department of Informatics")
+- **`uzh_authors`** — only UZH-affiliated researchers, used to identify potential supervisors
+- **`author_authority_map`** — maps each author to their CRIS Person UUID (or `null` for external co-authors)
+- **`keywords`** — coarse-grained subject categories (DDC codes and Scopus areas)
+- **`language`** — language code (e.g. `eng`, `deu`), useful for embedding quality
+
+To change the output shape, edit `src/output_schema.py` — it's the single
+file that defines what goes into the JSONL.
+
+## First-time Setup
 
 1. **Add the secret.** Repo → Settings → Secrets and variables → Actions →
    New repository secret → name it `ZORA_API_KEY`, value = your ZORA
@@ -20,8 +73,7 @@ up. Also fully usable as a standalone container outside this repo.
 2. **Verify the field-name assumptions against real data — do this before
    trusting anything else.** `src/config.py` assumes standard Dublin Core
    field names, but UZH's DSpace-CRIS install may extend or rename some of
-   them (especially author-ORCID linkage). Run this once, locally, with
-   your token:
+   them. Run this once, locally, with your token:
 
    ```bash
    $env:PERSONAL_API_TOKEN_FILE = "token.secret"
@@ -29,72 +81,43 @@ up. Also fully usable as a standalone container outside this repo.
    python -m scripts.inspect_fields 5
    ```
 
-   This prints every metadata field actually present on 5 real WWF
-   records, checks it against what `config.py` assumes, and — importantly —
-   checks whether `dc.contributor.author` entries carry a resolvable
-   `authority` key (a Person entity UUID). It also checks whether
-   `dc.subject` (keywords) is present on real records.
-
 3. **Push to `main`.** This triggers `build-image.yml`, which publishes
    `ghcr.io/<owner>/<repo>:latest`. The scheduled harvest workflows pull
    this image rather than rebuilding from source on every run.
 
 4. **Trigger a first full harvest manually** (Actions tab → "Full harvest
    (weekly rebuild)" → Run workflow). You can set a `since` date to limit
-   scope (e.g. `2024-07-01` for ~2 years of data). For a smoke test, run
-   locally with `--limit 5` first.
+   scope (e.g. `2024-07-01`). For a smoke test, run locally with `--limit 5`
+   first.
 
 After that, `harvest-incremental.yml` (daily) and `harvest-full.yml`
 (weekly) run unattended.
 
-## Output format
-
-Primary output: `data/publications.jsonl` — one JSON object per line,
-each representing a single ZORA publication. Field names match the
-main repo's `ZoraRecord` contract:
-
-```json
-{
-  "id": "20.500.14742/1001",
-  "doi": "10.1234/example",
-  "title": "Trade Policy and Growth",
-  "abstract": "This paper examines...",
-  "authors": ["Doe, Jane"],
-  "year": 2025,
-  "publication_type": "Journal Article",
-  "keywords": ["International Trade", "Growth Models"],
-  "url": "https://www.zora.uzh.ch/handle/20.500.14742/1001"
-}
-```
-
-To change the output shape, edit `src/output_schema.py` — it's the single
-file that defines what goes into the JSONL.
-
-## Why two harvest modes
+## Why Two Harvest Modes
 
 `dc.date.accessioned` — the field the incremental query filters on —
 records when a publication was *added* to ZORA, not when it was last
 *edited*. A daily incremental pull will pick up new publications cheaply,
-but it will never notice someone correcting a typo in an existing abstract,
-because the accession date doesn't change on edit. The weekly full mode
-rebuilds the output from scratch and is the only mode that correctly
-reflects edits or removals.
+but it will never notice someone correcting a typo in an existing abstract.
+The weekly full mode rebuilds the output from scratch and is the only mode
+that correctly reflects edits or removals.
 
-## Known limitation: multi-author ORCID attribution
+## MongoDB Ingestion (Optional)
 
-`dc.contributor.author` is a repeatable free-text field. When a
-publication has more than one author, there's no reliable way — from the
-search API response alone — to know which specific co-author an
-item-level ORCID belongs to. See the docstring at the top of
-`src/aggregate.py` for the full reasoning.
+To load the harvested publications into MongoDB:
 
-## Verification needed
+```bash
+pip install pymongo
+python -m scripts.ingest_to_mongodb \
+    --uri "mongodb://localhost:27017" \
+    --db thesis_matchmaker \
+    --collection publications
+```
 
-The `dc.date.accessioned:[date TO *]` Solr range query (used by
-incremental mode and the `--since` flag) has not been tested against the
-live ZORA API. Run a manual smoke test before relying on it.
+This is decoupled from the harvester — a MongoDB outage never breaks the
+harvest pipeline. The script performs a bulk upsert keyed by publication `id`.
 
-## Running locally
+## Running Locally
 
 ### Without Docker (fastest for development)
 
@@ -137,53 +160,50 @@ docker run --rm \
   zora-harvester --mode full --limit 5
 ```
 
-### Running the published image from anywhere
-
-```bash
-docker pull ghcr.io/<owner>/<repo>:latest
-docker run --rm \
-  -v "$(pwd)/data:/app/data" \
-  -v "/path/to/token.secret:/app/token.secret:ro" \
-  -e PERSONAL_API_TOKEN_FILE=/app/token.secret \
-  ghcr.io/<owner>/<repo>:latest --mode full --since 2024-07-01
-```
-
-## Running tests
+## Running Tests
 
 ```bash
 pip install -r requirements-dev.txt
 pytest tests/ -v
 ```
 
-## Repo layout
+## Repo Layout
 
 ```
 src/
-  config.py           # every hardcoded constant — scope UUID, field names, paths
+  config.py           # every hardcoded constant — scope UUID, field names, paths,
+                      #   department mapping (collection UUID → department name)
   zora_client.py      # thin wrapper around dspace_rest_client
-  normalize.py        # raw DSpace item -> flat publication dict
-  aggregate.py        # publications -> per-researcher profiles (secondary output)
+  normalize.py        # raw DSpace item → flat publication dict
   output_schema.py    # THE file to edit when output shape changes
-  schema.py           # pydantic contract for researchers.jsonl (secondary)
   state.py            # incremental watermark (data/state.json)
   harvest.py          # orchestrates the above; the Docker ENTRYPOINT
 scripts/
   inspect_fields.py   # one-off: diff real ZORA fields against config.py assumptions
+  ingest_to_mongodb.py # optional: load publications.jsonl into MongoDB
 schema/
   zora_publication.schema.json  # JSON Schema mirror, for non-Python consumers
-  researcher.schema.json        # JSON Schema for secondary output
 tests/                # no network needed — fixtures fake the DSpace object shape
 data/
-  publications.jsonl       # PRIMARY deliverable — created by the first harvest
-  researchers.jsonl        # secondary/debug — per-researcher profiles
+  publications.jsonl       # sole deliverable — created by the first harvest
   state.json               # incremental watermark
   raw/                     # per-run debug dumps, gitignored, kept as Actions artifacts
 ```
 
-## Safety check
+## Safety Check
 
 If a harvest run returns fewer total publications than
 `MIN_RETENTION_RATIO` (default 50%) of the previous run's total, it aborts
 without writing. A sudden drop like that is almost always an auth failure
 or misconfigured scope returning an empty-but-200 response, not the
 faculty genuinely losing half its publications overnight.
+
+## Known Limitation: Multi-author ORCID Attribution
+
+`dc.contributor.author` is a repeatable free-text field. When a
+publication has more than one author, there's no reliable way — from the
+search API response alone — to know which specific co-author an
+item-level ORCID belongs to. See the docstring at the top of
+`src/normalize.py` for the full reasoning. The `uzh_authors` and
+`author_authority_map` fields mitigate this by using the CRIS authority
+key to reliably identify UZH-affiliated authors.

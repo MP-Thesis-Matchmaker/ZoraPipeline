@@ -31,11 +31,3 @@ jobs:
           else
             echo "No data/publications.jsonl yet (expected before the first harvest run) — skipping"
           fi
-
-      - name: Validate committed researchers.jsonl against schema
-        run: |
-          if [ -f data/researchers.jsonl ]; then
-            python -m src.schema data/researchers.jsonl
-          else
-            echo "No data/researchers.jsonl yet (expected before the first harvest run) — skipping"
-          fi

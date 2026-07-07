@@ -37,6 +37,10 @@ def test_normalize_missing_fields_do_not_crash():
     assert record["abstract"] is None
     assert record["year"] is None
     assert record["keywords"] == []
+    assert record["department"] is None
+    assert record["language"] is None
+    assert record["uzh_authors"] == []
+    assert record["author_authority_map"] == {}
 
 
 def test_normalize_year_extracted_from_full_date():
@@ -135,3 +139,128 @@ def test_author_field_uses_uzh_namespace():
     record = normalize_item(dso)
 
     assert record["authors"] == ["Schmutzler, Armin"]
+
+
+# --- New tests for department, uzh_authors, author_authority_map, language ---
+
+
+def test_department_extracted_from_embedded_collection():
+    """Department is resolved from the embedded owningCollection UUID."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={config.FIELD_TITLE: ["A paper"]},
+        embedded={
+            "owningCollection": {
+                "uuid": "f61a17ca-109f-481a-bbc3-3f410fa6ef57",
+                "name": "Publications of Department of Informatics",
+            }
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["department"] == "Department of Informatics"
+
+
+def test_department_none_when_no_embedded_collection():
+    """Department is None when no owningCollection is embedded."""
+    dso = FakeDSO(handle="h", uuid="u", fields={config.FIELD_TITLE: ["A paper"]})
+
+    record = normalize_item(dso)
+
+    assert record["department"] is None
+
+
+def test_department_none_for_unknown_collection_uuid():
+    """Department is None when the collection UUID is not in the mapping."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={config.FIELD_TITLE: ["A paper"]},
+        embedded={
+            "owningCollection": {
+                "uuid": "unknown-uuid-not-in-mapping",
+                "name": "Some Other Collection",
+            }
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["department"] is None
+
+
+def test_uzh_authors_filters_by_authority_key():
+    """uzh_authors includes only authors with a non-null authority key."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={
+            config.FIELD_AUTHOR: ["External, Alice", "Schmutzler, Armin", "Other, Bob"],
+        },
+        authorities={
+            config.FIELD_AUTHOR: [None, "f45b3ec1-cf2a-43ae-85d4-528afff07a40", None],
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["authors"] == ["External, Alice", "Schmutzler, Armin", "Other, Bob"]
+    assert record["uzh_authors"] == ["Schmutzler, Armin"]
+
+
+def test_uzh_authors_empty_when_no_authorities():
+    """uzh_authors is empty when no author has an authority key."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={config.FIELD_AUTHOR: ["Doe, Jane", "Smith, John"]},
+    )
+
+    record = normalize_item(dso)
+
+    assert record["uzh_authors"] == []
+
+
+def test_author_authority_map_includes_all_authors():
+    """author_authority_map maps every author, with None for external ones."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={
+            config.FIELD_AUTHOR: ["External, Alice", "Schmutzler, Armin"],
+        },
+        authorities={
+            config.FIELD_AUTHOR: [None, "f45b3ec1-cf2a-43ae-85d4-528afff07a40"],
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["author_authority_map"] == {
+        "External, Alice": None,
+        "Schmutzler, Armin": "f45b3ec1-cf2a-43ae-85d4-528afff07a40",
+    }
+
+
+def test_language_extracted():
+    """Language is read from dc.language.iso."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={config.FIELD_LANGUAGE: ["eng"]},
+    )
+
+    record = normalize_item(dso)
+
+    assert record["language"] == "eng"
+
+
+def test_language_none_when_missing():
+    """Language is None when dc.language.iso is not present."""
+    dso = FakeDSO(handle="h", uuid="u", fields={config.FIELD_TITLE: ["A paper"]})
+
+    record = normalize_item(dso)
+
+    assert record["language"] is None
