@@ -172,8 +172,8 @@ def test_department_none_when_no_embedded_collection():
     assert record["department"] is None
 
 
-def test_department_none_for_unknown_collection_uuid():
-    """Department is None when the collection UUID is not in the mapping."""
+def test_department_resolved_by_parsing_collection_name_if_not_mapped():
+    """Department is parsed from owningCollection name when the UUID is not in WWF mapping."""
     dso = FakeDSO(
         handle="h",
         uuid="u",
@@ -181,14 +181,64 @@ def test_department_none_for_unknown_collection_uuid():
         embedded={
             "owningCollection": {
                 "uuid": "unknown-uuid-not-in-mapping",
-                "name": "Some Other Collection",
+                "name": "Institute of Psychology",
             }
         },
     )
 
     record = normalize_item(dso)
 
-    assert record["department"] is None
+    assert record["department"] == "Institute of Psychology"
+
+
+def test_department_resolved_by_parsing_collection_name_strips_prefix():
+    """Department name extraction strips 'Publications of ' prefix."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={config.FIELD_TITLE: ["A paper"]},
+        embedded={
+            "owningCollection": {
+                "uuid": "unknown-uuid-not-in-mapping",
+                "name": "Publications of Institute of Computational Linguistics",
+            }
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["department"] == "Institute of Computational Linguistics"
+
+
+
+def test_department_extracted_from_mapped_collections():
+    """Department is resolved from mappedCollections if owningCollection is external/unknown."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={config.FIELD_TITLE: ["A paper"]},
+        embedded={
+            "owningCollection": {
+                "uuid": "73de4b9d-bd77-49a1-a264-910d6d0c90c0",
+                "name": "Publications of Institute of Psychology",
+            },
+            "mappedCollections": {
+                "_embedded": {
+                    "mappedCollections": [
+                        {
+                            "uuid": "f61a17ca-109f-481a-bbc3-3f410fa6ef57",
+                            "name": "Publications of Department of Informatics",
+                        }
+                    ]
+                }
+            }
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["department"] == "Department of Informatics"
+
 
 
 def test_uzh_authors_filters_by_authority_key():

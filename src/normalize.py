@@ -44,27 +44,52 @@ def _first_orcid(dso: Any) -> str | None:
 
 
 def _get_department(dso: Any) -> str | None:
-    """Resolve the department name from the item's embedded owningCollection.
+    """Resolve the department name from the item's embedded owningCollection or mappedCollections.
 
-    The search query passes embeds=["owningCollection"], so each DSO carries
-    its owning collection as dso.embedded["owningCollection"]. We look up the
-    collection's UUID in the config mapping to get the department name.
+    DSO carries its owning collection and all mapped collections as embedded objects.
+    We check the owningCollection first, and fall back to checking all mappedCollections
+    to see if any belong to the Faculty of Economics (WWF).
+    
+    If no WWF collection is matched, we fall back to dynamically parsing the owningCollection's 
+    name (or the first mapped collection's name) as the department, stripping the "Publications of " 
+    prefix if present. This ensures that external collections (e.g. Psychology, Linguistics) are 
+    included in the dataset.
     """
     embedded = getattr(dso, "embedded", None) or {}
+
+    # 1. Check owningCollection in the WWF mapping first
     owning_collection = embedded.get("owningCollection")
-    if not owning_collection:
-        return None
-    collection_uuid = owning_collection.get("uuid")
-    if not collection_uuid:
-        return None
-    department = config.COLLECTION_TO_DEPARTMENT.get(collection_uuid)
-    if department is None:
-        logger.warning(
-            "Unknown collection UUID %s (name: %s) — not in COLLECTION_TO_DEPARTMENT mapping",
-            collection_uuid,
-            owning_collection.get("name"),
-        )
-    return department
+    if owning_collection:
+        collection_uuid = owning_collection.get("uuid")
+        if collection_uuid and collection_uuid in config.COLLECTION_TO_DEPARTMENT:
+            return config.COLLECTION_TO_DEPARTMENT[collection_uuid]
+
+    # 2. Check mappedCollections in the WWF mapping second
+    mapped_collections_data = embedded.get("mappedCollections")
+    if isinstance(mapped_collections_data, dict):
+        colls = mapped_collections_data.get("_embedded", {}).get("mappedCollections", [])
+        for coll in colls:
+            collection_uuid = coll.get("uuid")
+            if collection_uuid and collection_uuid in config.COLLECTION_TO_DEPARTMENT:
+                return config.COLLECTION_TO_DEPARTMENT[collection_uuid]
+
+    # 3. Fall back to parsing the owningCollection name
+    if owning_collection:
+        name = owning_collection.get("name", "")
+        if name.startswith("Publications of "):
+            return name[len("Publications of "):]
+        return name if name else None
+
+    # 4. Fall back to parsing the first mapped collection name
+    if isinstance(mapped_collections_data, dict):
+        colls = mapped_collections_data.get("_embedded", {}).get("mappedCollections", [])
+        if colls:
+            name = colls[0].get("name", "")
+            if name.startswith("Publications of "):
+                return name[len("Publications of "):]
+            return name if name else None
+
+    return None
 
 
 def _get_uzh_authors(dso: Any) -> list[str]:
