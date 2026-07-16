@@ -46,41 +46,21 @@ def _first_orcid(dso: Any) -> str | None:
 def _get_department(dso: Any) -> str | None:
     """Resolve the department name from the item's embedded owningCollection or mappedCollections.
 
-    DSO carries its owning collection and all mapped collections as embedded objects.
-    We check the owningCollection first, and fall back to checking all mappedCollections
-    to see if any belong to the Faculty of Economics (WWF).
-    
-    If no WWF collection is matched, we fall back to dynamically parsing the owningCollection's 
-    name (or the first mapped collection's name) as the department, stripping the "Publications of " 
-    prefix if present. This ensures that external collections (e.g. Psychology, Linguistics) are 
-    included in the dataset.
+    Parses the collection name, stripping the "Publications of " prefix if present.
+    Falls back to the first mapped collection if the owning collection has no name.
     """
     embedded = getattr(dso, "embedded", None) or {}
 
-    # 1. Check owningCollection in the WWF mapping first
+    # 1. Parse the owningCollection name
     owning_collection = embedded.get("owningCollection")
-    if owning_collection:
-        collection_uuid = owning_collection.get("uuid")
-        if collection_uuid and collection_uuid in config.COLLECTION_TO_DEPARTMENT:
-            return config.COLLECTION_TO_DEPARTMENT[collection_uuid]
-
-    # 2. Check mappedCollections in the WWF mapping second
-    mapped_collections_data = embedded.get("mappedCollections")
-    if isinstance(mapped_collections_data, dict):
-        colls = mapped_collections_data.get("_embedded", {}).get("mappedCollections", [])
-        for coll in colls:
-            collection_uuid = coll.get("uuid")
-            if collection_uuid and collection_uuid in config.COLLECTION_TO_DEPARTMENT:
-                return config.COLLECTION_TO_DEPARTMENT[collection_uuid]
-
-    # 3. Fall back to parsing the owningCollection name
     if owning_collection:
         name = owning_collection.get("name", "")
         if name.startswith("Publications of "):
             return name[len("Publications of "):]
         return name if name else None
 
-    # 4. Fall back to parsing the first mapped collection name
+    # 2. Fall back to the first mapped collection name
+    mapped_collections_data = embedded.get("mappedCollections")
     if isinstance(mapped_collections_data, dict):
         colls = mapped_collections_data.get("_embedded", {}).get("mappedCollections", [])
         if colls:
@@ -105,15 +85,25 @@ def _get_uzh_authors(dso: Any) -> list[str]:
     ]
 
 
-def _get_author_authority_map(dso: Any) -> dict[str, str | None]:
-    """Build a dict mapping each author name → their CRIS Person UUID (or None).
+def _clean_authority(authority: str | None) -> str | None:
+    """Strip DSpace placeholder prefix 'will be referenced::ORCID::' if present."""
+    if not authority:
+        return None
+    prefix = "will be referenced::ORCID::"
+    if authority.startswith(prefix):
+        return authority[len(prefix):]
+    return authority
 
-    This provides full provenance: UZH-affiliated authors have a UUID,
+
+def _get_author_authority_map(dso: Any) -> dict[str, str | None]:
+    """Build a dict mapping each author name → their CRIS Person UUID or bare ORCID (or None).
+
+    This provides full provenance: UZH-affiliated authors have a UUID or ORCID,
     external co-authors have None.
     """
     raw = dso.get_metadata_values(config.FIELD_AUTHOR)
     return {
-        entry["value"]: entry.get("authority")
+        entry["value"]: _clean_authority(entry.get("authority"))
         for entry in raw
         if entry.get("value")
     }

@@ -1,5 +1,5 @@
 """
-Main entrypoint for the ZORA Faculty of Economics harvester.
+Main entrypoint for the ZORA harvester.
 
 Usage:
     python -m src.harvest --mode full
@@ -104,7 +104,7 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
     last_accessioned_seen = since
 
 
-    for i, dso in enumerate(zora_client.iter_faculty_items(client, since=since)):
+    for i, dso in enumerate(zora_client.iter_items(client, since=since)):
         if limit is not None and i >= limit:
             logger.info("Reached --limit %d, stopping", limit)
             break

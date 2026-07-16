@@ -68,22 +68,30 @@ def get_client() -> DSpaceClient:
     return client
 
 
-def iter_faculty_items(client: DSpaceClient, since: str | None = None):
+def iter_items(
+    client: DSpaceClient,
+    scope: str | None = config.DEFAULT_SCOPE_UUID,
+    since: str | None = None,
+):
     """
-    Yield every item in the Faculty of Economics scope.
+    Yield every item, optionally scoped to a single community.
 
+    @param scope: community UUID to restrict to, or None for all of ZORA.
     @param since: optional ISO date string. If given, only items accessioned
                    on or after this date are returned (incremental mode).
                    If None, every item in scope is returned (full mode).
     """
-    query = None
+    query = "dspace.entity.type:Publication"
     if since is not None:
-        # Matches the range-query pattern Martin's email used for
-        # dc.date.accessioned, e.g. dc.date.accessioned:[2025-01-01 TO *]
-        query = f"dc.date.accessioned:[{since} TO *]"
+        # Matches the range-query pattern on the date-time typed field dc.date.accessioned_dt.
+        # Solr requires a fully formatted date-time string (e.g. YYYY-MM-DDTHH:MM:SSZ).
+        formatted_since = since
+        if len(since) == 10:  # YYYY-MM-DD
+            formatted_since = f"{since}T00:00:00Z"
+        query = f"dspace.entity.type:Publication AND dc.date.accessioned_dt:[{formatted_since} TO *]"
 
     yield from client.search_objects_iter(
-        scope=config.FACULTY_SCOPE_UUID,
+        scope=scope,
         dso_type="item",
         query=query,
         sort="dc.date.accessioned,asc",

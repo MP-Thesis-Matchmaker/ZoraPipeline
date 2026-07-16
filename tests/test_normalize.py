@@ -212,16 +212,12 @@ def test_department_resolved_by_parsing_collection_name_strips_prefix():
 
 
 def test_department_extracted_from_mapped_collections():
-    """Department is resolved from mappedCollections if owningCollection is external/unknown."""
+    """Department is resolved from mappedCollections if owningCollection is missing."""
     dso = FakeDSO(
         handle="h",
         uuid="u",
         fields={config.FIELD_TITLE: ["A paper"]},
         embedded={
-            "owningCollection": {
-                "uuid": "73de4b9d-bd77-49a1-a264-910d6d0c90c0",
-                "name": "Publications of Institute of Psychology",
-            },
             "mappedCollections": {
                 "_embedded": {
                     "mappedCollections": [
@@ -314,3 +310,26 @@ def test_language_none_when_missing():
     record = normalize_item(dso)
 
     assert record["language"] is None
+
+
+def test_author_authority_map_strips_orcid_placeholder():
+    """author_authority_map strips the 'will be referenced::ORCID::' prefix."""
+    dso = FakeDSO(
+        handle="h",
+        uuid="u",
+        fields={
+            config.FIELD_AUTHOR: ["External, Alice", "Theile, Gudrun"],
+        },
+        authorities={
+            config.FIELD_AUTHOR: [None, "will be referenced::ORCID::0000-0002-9454-3617"],
+        },
+    )
+
+    record = normalize_item(dso)
+
+    assert record["author_authority_map"] == {
+        "External, Alice": None,
+        "Theile, Gudrun": "0000-0002-9454-3617",
+    }
+    assert record["uzh_authors"] == ["Theile, Gudrun"]
+
