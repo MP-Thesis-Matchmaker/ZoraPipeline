@@ -23,6 +23,8 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/mp-thesis-matchmaker/zorapipeline
     steps:
       - uses: actions/checkout@v4
 
@@ -34,12 +36,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Handles lowercasing the owner/repo name automatically — GHCR
-      # requires lowercase image refs, GitHub repo names don't guarantee it.
+      # Use the lowercase image name from env to avoid GHCR case sensitivity issues.
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
             type=sha,format=short
