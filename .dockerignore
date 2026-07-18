@@ -12,6 +12,6 @@ data/state.json
 tests/
 docs/
 notebooks/
-*.md
+
 vencv/
 .venv/
