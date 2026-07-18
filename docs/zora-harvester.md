@@ -118,8 +118,3 @@ src/thesis_matchmaker/zora/
 └── schema/
     └── zora_publication.schema.json
 ```
-
-## Known Limitations
-
-- **Multi-author ORCID**: When a publication has multiple authors, there's no reliable way from the search API alone to know which co-author an item-level ORCID belongs to. The `author_authority_map` field mitigates this using CRIS authority keys.
-- **Incremental mode cannot detect edits/removals**: `dc.date.accessioned` records when a publication was *added* to ZORA, not when it was last edited. Periodic full harvests are the only way to catch corrections or removals.
