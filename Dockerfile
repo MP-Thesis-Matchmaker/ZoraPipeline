@@ -6,13 +6,12 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Install dependencies in their own layer so `docker build` only re-runs pip
-# when requirements change, not on every source edit.
-COPY pyproject.toml .
-RUN pip install .
-
+# Install dependencies. We need pyproject.toml, README.md, and the source code
+# present because pip will build the package metadata using setuptools.
+COPY pyproject.toml README.md ./
 COPY src/thesis_matchmaker/ ./src/thesis_matchmaker/
 COPY scripts/ ./scripts/
+RUN pip install .
 
 # data/ is expected to be bind-mounted at runtime (it's where
 # publications.jsonl and state.json live, and where the container writes
