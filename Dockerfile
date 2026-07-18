@@ -7,16 +7,15 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 # Install dependencies in their own layer so `docker build` only re-runs pip
-# when requirements.txt actually changes, not on every source edit.
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# when requirements change, not on every source edit.
+COPY pyproject.toml .
+RUN pip install .
 
-COPY src/ ./src/
-COPY schema/ ./schema/
+COPY src/thesis_matchmaker/ ./src/thesis_matchmaker/
 COPY scripts/ ./scripts/
 
 # data/ is expected to be bind-mounted at runtime (it's where
-# zora_publications.jsonl and state.json live, and where the container writes
+# publications.jsonl and state.json live, and where the container writes
 # its output back onto the host / repo checkout). This placeholder just means
 # the image doesn't error out if someone runs it without a mount for a quick
 # smoke test.
@@ -33,5 +32,8 @@ RUN mkdir -p data/raw
 # cleanup. Baking a fixed UID into the image would only work by coincidence
 # on whichever host happens to share it.
 
-ENTRYPOINT ["python", "-m", "src.harvest"]
+# Default: one-shot harvest (safest for CI / manual use).
+# For continuous operation, override the command to:
+#   python -m thesis_matchmaker.zora.scheduler
+ENTRYPOINT ["python", "-m", "thesis_matchmaker.zora.harvest"]
 CMD ["--mode", "incremental"]

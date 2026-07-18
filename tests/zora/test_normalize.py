@@ -1,5 +1,5 @@
-from src import config
-from src.normalize import normalize_item
+from thesis_matchmaker.zora import config
+from thesis_matchmaker.zora.normalize import normalize_item
 from .fake_dso import FakeDSO
 
 
@@ -332,4 +332,3 @@ def test_author_authority_map_strips_orcid_placeholder():
         "Theile, Gudrun": "0000-0002-9454-3617",
     }
     assert record["uzh_authors"] == ["Theile, Gudrun"]
-

@@ -1,10 +1,32 @@
-name: Full harvest (weekly rebuild)
+name: ZORA Harvest
 
+# Manual-trigger only — this is a dev/backfill tool.
+# For continuous operation, the scheduler module runs as a long-lived process
+# in whatever hosts the deployed application.
+#
+# How to use:
+#   1. Go to the Actions tab in this repo
+#   2. Select "ZORA Harvest" from the left sidebar
+#   3. Click "Run workflow"
+#   4. Choose mode (full/incremental), optionally set a since date or limit
+#   5. Click "Run workflow" (green button)
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Harvest mode"
+        required: true
+        default: "incremental"
+        type: choice
+        options:
+          - incremental
+          - full
       since:
-        description: "Optional ISO date (e.g. 2024-07-01). Only fetch items accessioned on or after this date."
+        description: "Optional ISO date (e.g. 2024-07-01). Only fetch items accessioned on or after this date. Only applies to full mode."
+        required: false
+        default: ""
+      limit:
+        description: "Optional max number of items to fetch. Useful for smoke testing."
         required: false
         default: ""
 
@@ -19,7 +41,7 @@ permissions:
 jobs:
   harvest:
     runs-on: ubuntu-latest
-    timeout-minutes: 30   # generous headroom; a single faculty's WWF scope should be fast
+    timeout-minutes: 120   # full UZH harvest can take ~2 hours
     steps:
       - uses: actions/checkout@v4
 
@@ -37,13 +59,16 @@ jobs:
 
       - name: Build harvest command
         run: |
-          CMD="--mode full"
+          CMD="--mode ${{ github.event.inputs.mode }}"
           if [ -n "${{ github.event.inputs.since }}" ]; then
             CMD="$CMD --since ${{ github.event.inputs.since }}"
           fi
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            CMD="$CMD --limit ${{ github.event.inputs.limit }}"
+          fi
           echo "HARVEST_CMD=$CMD" >> "$GITHUB_ENV"
 
-      - name: Run harvester container (full mode, with retry)
+      - name: Run harvester container (with retry)
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
@@ -71,7 +96,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: raw-dump-full-${{ github.run_id }}
+          name: raw-dump-${{ github.event.inputs.mode }}-${{ github.run_id }}
           path: data/raw/*.jsonl
           retention-days: 14
           if-no-files-found: ignore
@@ -81,5 +106,5 @@ jobs:
           git config user.name "zora-harvest-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data/publications.jsonl data/state.json
-          git diff --staged --quiet || git commit -m "chore: full ZORA rebuild $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git diff --staged --quiet || git commit -m "chore: ${{ github.event.inputs.mode }} ZORA harvest $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push

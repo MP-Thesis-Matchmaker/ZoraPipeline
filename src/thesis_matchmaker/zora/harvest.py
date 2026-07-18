@@ -2,10 +2,10 @@
 Main entrypoint for the ZORA harvester.
 
 Usage:
-    python -m src.harvest --mode full
-    python -m src.harvest --mode full --since 2024-07-01
-    python -m src.harvest --mode full --limit 5
-    python -m src.harvest --mode incremental
+    python -m thesis_matchmaker.zora.harvest --mode full
+    python -m thesis_matchmaker.zora.harvest --mode full --since 2024-07-01
+    python -m thesis_matchmaker.zora.harvest --mode full --limit 5
+    python -m thesis_matchmaker.zora.harvest --mode incremental
 
 Outputs:
     data/publications.jsonl       — flat per-publication records
@@ -117,7 +117,7 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
 
     if mode == "incremental" and not raw_items:
         logger.info("No new publications since last run — nothing to do")
-        state.save_state(since, st.get("last_total_publications", 0))
+        state.save_state(since, st.get("last_total_publications", 0), mode)
         return 0
 
     write_raw_dump(raw_items, mode)
@@ -162,7 +162,7 @@ def run(mode: str, since_override: str | None = None, limit: int | None = None) 
             logger.error("  %s", e)
         return 1
 
-    state.save_state(last_accessioned_seen, new_total_pubs)
+    state.save_state(last_accessioned_seen, new_total_pubs, mode)
     logger.info(
         "Done. %d publications in %s, all schema-valid.",
         valid_count,

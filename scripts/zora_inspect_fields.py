@@ -1,14 +1,14 @@
 """
-Run this once, manually, before trusting anything in src/config.py's field
+Run this once, manually, before trusting anything in config.py's field
 name constants.
 
-Fetches a handful of real WWF (Faculty of Economics) records and prints
-every metadata field key actually present, with one example value each —
-plus an explicit check against the field names this pipeline assumes.
+Fetches a handful of real ZORA records and prints every metadata field key
+actually present, with one example value each — plus an explicit check
+against the field names this pipeline assumes.
 
 Usage:
     export PERSONAL_API_TOKEN_FILE=/path/to/your/token.secret
-    python -m scripts.inspect_fields [n_items]
+    python -m scripts.zora_inspect_fields [n_items]
 
 Note: this needs real network access to www.zora.uzh.ch, so it will not run
 inside a sandboxed environment without that access — run it locally or as
@@ -19,7 +19,7 @@ from __future__ import annotations
 import sys
 from collections import defaultdict
 
-from src import config, zora_client
+from thesis_matchmaker.zora import config, zora_client
 
 
 def main() -> None:
@@ -30,7 +30,7 @@ def main() -> None:
     author_field_authorities: dict[str, list[str | None]] = defaultdict(list)
 
     count = 0
-    for dso in zora_client.iter_faculty_items(client):
+    for dso in zora_client.iter_items(client):
         for field, values in dso.metadata.items():
             if field not in field_examples and values:
                 example = values[0].get("value", "")
@@ -44,7 +44,7 @@ def main() -> None:
         if count >= n:
             break
 
-    print(f"\nInspected {count} real WWF items.\n")
+    print(f"\nInspected {count} real ZORA items.\n")
 
     print("=" * 70)
     print("ALL METADATA FIELDS FOUND (field -> one example value)")
@@ -83,7 +83,7 @@ def main() -> None:
 
     print()
     print("=" * 70)
-    print("PER-AUTHOR AUTHORITY KEYS (dc.contributor.author entries)")
+    print("PER-AUTHOR AUTHORITY KEYS (uzh.contributor.author entries)")
     print("=" * 70)
     print(
         "If these are non-null UUIDs, per-author identity is resolvable via "

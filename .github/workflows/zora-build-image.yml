@@ -1,18 +1,16 @@
-name: Build and publish image
+name: Build and publish ZORA harvester image
 
-# Publishing to GHCR (rather than only building inline in the harvest job)
-# means this container is pullable by anything with read access to the
-# package: another repo's workflow, a teammate's laptop, a server outside
-# GitHub Actions entirely. `docker pull ghcr.io/<owner>/<repo>:latest` is
-# all that's needed — no need to clone this source to use it.
+# Publishing to GHCR means this container is pullable by anything with read
+# access to the package: the harvest workflow, a teammate's laptop, a
+# Kubernetes cluster, anything. `docker pull ghcr.io/<owner>/<repo>:latest`
+# is all that's needed.
 on:
   push:
     branches: [main]
     paths:
       - "Dockerfile"
-      - "requirements.txt"
-      - "src/**"
-      - "schema/**"
+      - "pyproject.toml"
+      - "src/thesis_matchmaker/zora/**"
       - "scripts/**"
   workflow_dispatch:
 
@@ -24,7 +22,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     env:
-      IMAGE_NAME: ghcr.io/mp-thesis-matchmaker/zorapipeline
+      IMAGE_NAME: ghcr.io/mp-thesis-matchmaker/rag-thesis-matchmaker
     steps:
       - uses: actions/checkout@v4
 

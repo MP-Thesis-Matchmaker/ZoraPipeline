@@ -1,5 +1,5 @@
 """Tests for output_schema.py — the flat publication output contract."""
-from src.output_schema import ZoraPublication, to_output
+from thesis_matchmaker.zora.output_schema import ZoraPublication, to_output
 
 
 def _record(**overrides):
